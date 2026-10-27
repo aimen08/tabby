@@ -1,0 +1,17 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    paths: ['Sources/**', 'Package.swift', 'Package.resolved', '.github/workflows/build.yml']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - run: swift build -c release

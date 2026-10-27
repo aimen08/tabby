@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Tabby</title>
+    <link>https://raw.githubusercontent.com/aimen08/tabby/main/appcast.xml</link>
+    <description>A minimal ⌥Tab app switcher for macOS.</description>
+    <language>en</language>
+  </channel>
+</rss>

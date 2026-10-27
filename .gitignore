@@ -1,0 +1,8 @@
+.DS_Store
+.build/
+.swiftpm/
+build/
+dist/
+Resources/AppIcon.iconset/
+.sparkle-keys/
+.signing-identity
