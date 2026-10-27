@@ -142,9 +142,9 @@ private final class ItemView: NSView {
         buttons.orientation = .horizontal
         buttons.spacing = 4
         buttons.isHidden = true
-        buttons.addArrangedSubview(TileButton(symbol: "xmark", tint: .white.withAlphaComponent(0.25),
+        buttons.addArrangedSubview(TileButton(symbol: "xmark.circle.fill", tint: NSColor(white: 0.45, alpha: 1),
                                               help: "Quit \(app.localizedName ?? "app")") { [weak self] in self?.onQuit?() })
-        buttons.addArrangedSubview(TileButton(symbol: "bolt.fill", tint: .systemRed,
+        buttons.addArrangedSubview(TileButton(symbol: "power.circle.fill", tint: .systemRed,
                                               help: "Force Quit \(app.localizedName ?? "app")") { [weak self] in self?.onForceQuit?() })
 
         for view in [thumbnail, smallIcon, label, buttons] {
@@ -196,16 +196,14 @@ private final class TileButton: NSButton {
     init(symbol: String, tint: NSColor, help: String, handler: @escaping () -> Void) {
         self.handler = handler
         super.init(frame: .zero)
-        image = NSImage(systemSymbolName: symbol, accessibilityDescription: help)?
-            .withSymbolConfiguration(.init(pointSize: 9, weight: .bold))
-        contentTintColor = .white
+        // A filled SF Symbol circle: white glyph on the tint colour.
+        let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
+            .applying(.init(paletteColors: [.white, tint]))
+        image = NSImage(systemSymbolName: symbol, accessibilityDescription: help)?.withSymbolConfiguration(config)
         isBordered = false
         imagePosition = .imageOnly
         toolTip = help
         setAccessibilityLabel(help)
-        wantsLayer = true
-        layer?.backgroundColor = tint.cgColor
-        layer?.cornerRadius = 9
         target = self
         action = #selector(fire)
         translatesAutoresizingMaskIntoConstraints = false
