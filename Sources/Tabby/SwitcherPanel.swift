@@ -3,6 +3,8 @@ import AppKit
 /// Floating, non-activating HUD showing a grid of window previews.
 final class SwitcherPanel {
     var onClick: ((Int) -> Void)?
+    var onQuit: ((NSRunningApplication) -> Void)?
+    var onForceQuit: ((NSRunningApplication) -> Void)?
 
     private let panel: NSPanel
     private let background = NSVisualEffectView()
@@ -51,6 +53,8 @@ final class SwitcherPanel {
         items = apps.enumerated().map { index, app in
             let item = ItemView(app: app, width: width, preview: previews(app.processIdentifier))
             item.onClick = { [weak self] in self?.onClick?(index) }
+            item.onQuit = { [weak self] in self?.onQuit?(app) }
+            item.onForceQuit = { [weak self] in self?.onForceQuit?(app) }
             return item
         }
         for start in stride(from: 0, to: items.count, by: columns) {
@@ -100,6 +104,8 @@ private final class ItemView: NSView {
 
     let pid: pid_t
     var onClick: (() -> Void)?
+    var onQuit: (() -> Void)?
+    var onForceQuit: (() -> Void)?
     var isSelected = false {
         didSet {
             layer?.backgroundColor = isSelected ? NSColor.white.withAlphaComponent(0.18).cgColor : nil
@@ -113,6 +119,7 @@ private final class ItemView: NSView {
     private let icon: NSImage?
     private let thumbnail = NSImageView()
     private let label: NSTextField
+    private let buttons = NSStackView()
 
     init(app: NSRunningApplication, width: CGFloat, preview: NSImage?) {
         pid = app.processIdentifier
@@ -131,7 +138,16 @@ private final class ItemView: NSView {
         label.textColor = .secondaryLabelColor
         label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        for view in [thumbnail, smallIcon, label] {
+        // Shown on hover: quit politely (the app may ask to save) or kill it outright.
+        buttons.orientation = .horizontal
+        buttons.spacing = 4
+        buttons.isHidden = true
+        buttons.addArrangedSubview(TileButton(symbol: "xmark", tint: .white.withAlphaComponent(0.25),
+                                              help: "Quit \(app.localizedName ?? "app")") { [weak self] in self?.onQuit?() })
+        buttons.addArrangedSubview(TileButton(symbol: "bolt.fill", tint: .systemRed,
+                                              help: "Force Quit \(app.localizedName ?? "app")") { [weak self] in self?.onForceQuit?() })
+
+        for view in [thumbnail, smallIcon, label, buttons] {
             view.translatesAutoresizingMaskIntoConstraints = false
             addSubview(view)
         }
@@ -144,7 +160,9 @@ private final class ItemView: NSView {
             smallIcon.heightAnchor.constraint(equalToConstant: 18),
             label.centerYAnchor.constraint(equalTo: smallIcon.centerYAnchor),
             label.leadingAnchor.constraint(equalTo: smallIcon.trailingAnchor, constant: 6),
-            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -8),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: buttons.leadingAnchor, constant: -4),
+            buttons.centerYAnchor.constraint(equalTo: smallIcon.centerYAnchor),
+            buttons.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
             thumbnail.topAnchor.constraint(equalTo: topAnchor, constant: Self.titleHeight + 4),
             thumbnail.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
             thumbnail.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
@@ -154,7 +172,49 @@ private final class ItemView: NSView {
 
     required init?(coder: NSCoder) { fatalError() }
 
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     override func mouseDown(with event: NSEvent) {
         onClick?()
     }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                       owner: self))
+    }
+
+    override func mouseEntered(with event: NSEvent) { buttons.isHidden = false }
+    override func mouseExited(with event: NSEvent) { buttons.isHidden = true }
+}
+
+/// Small round icon button that works in the non-activating panel.
+private final class TileButton: NSButton {
+    private let handler: () -> Void
+
+    init(symbol: String, tint: NSColor, help: String, handler: @escaping () -> Void) {
+        self.handler = handler
+        super.init(frame: .zero)
+        image = NSImage(systemSymbolName: symbol, accessibilityDescription: help)?
+            .withSymbolConfiguration(.init(pointSize: 9, weight: .bold))
+        contentTintColor = .white
+        isBordered = false
+        imagePosition = .imageOnly
+        toolTip = help
+        setAccessibilityLabel(help)
+        wantsLayer = true
+        layer?.backgroundColor = tint.cgColor
+        layer?.cornerRadius = 9
+        target = self
+        action = #selector(fire)
+        translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([widthAnchor.constraint(equalToConstant: 18), heightAnchor.constraint(equalToConstant: 18)])
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    @objc private func fire() { handler() }
 }

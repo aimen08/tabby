@@ -21,6 +21,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.selected = index
             self?.commit()
         }
+        panel.onQuit = { $0.terminate() }
+        panel.onForceQuit = { $0.forceTerminate() }
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            if let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
+                self?.removeFromSession(app.processIdentifier)
+            }
+        }
         keyTap = KeyTap { [weak self] action in self?.handle(action) ?? false }
         waitForAccessibility()
         // Without Screen Recording the switcher still works, showing app icons instead of previews.
@@ -96,6 +105,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let target = session[selected]
         end()
         activate(target)
+    }
+
+    /// Drops an app that quit while the switcher is open, keeping the selection in place.
+    private func removeFromSession(_ pid: pid_t) {
+        guard var list = session, let index = list.firstIndex(where: { $0.processIdentifier == pid }) else { return }
+        list.remove(at: index)
+        guard !list.isEmpty else { return end() }
+        session = list
+        if index < selected || selected == list.count { selected -= 1 }
+        if panel.isVisible { panel.show(list, selected: selected, previews: previews.cached) }
     }
 
     private func end() {
