@@ -23,6 +23,7 @@ Hold ⌥, tap Tab, see every app as a live window preview, let go to switch.
 
 - **Live previews**: each app's front window, captured with ScreenCaptureKit, falling back to the app icon
 - **Most recent first**: apps are ordered by when you last used them, like ⌘Tab
+- **Mouse friendly**: hover a preview to select it; once you've used the mouse, letting go of ⌥ keeps the switcher open until you click a preview (click outside or `esc` to close)
 - **Quit from the switcher**: hover a preview for ✕ (quit) and ⏻ (force quit); the switcher stays open
 - **Instant flip**: a quick ⌥Tab tap jumps to your last app without showing the panel
 - **Every Space**: the panel shows on the current desktop and over full-screen apps

@@ -3,6 +3,7 @@ import AppKit
 /// Floating, non-activating HUD showing a grid of window previews.
 final class SwitcherPanel {
     var onClick: ((Int) -> Void)?
+    var onHover: ((Int) -> Void)?
     var onQuit: ((NSRunningApplication) -> Void)?
     var onForceQuit: ((NSRunningApplication) -> Void)?
 
@@ -53,6 +54,7 @@ final class SwitcherPanel {
         items = apps.enumerated().map { index, app in
             let item = ItemView(app: app, width: width, preview: previews(app.processIdentifier))
             item.onClick = { [weak self] in self?.onClick?(index) }
+            item.onHover = { [weak self] in self?.onHover?(index) }
             item.onQuit = { [weak self] in self?.onQuit?(app) }
             item.onForceQuit = { [weak self] in self?.onForceQuit?(app) }
             return item
@@ -104,6 +106,7 @@ private final class ItemView: NSView {
 
     let pid: pid_t
     var onClick: (() -> Void)?
+    var onHover: (() -> Void)?
     var onQuit: (() -> Void)?
     var onForceQuit: (() -> Void)?
     var isSelected = false {
@@ -174,6 +177,13 @@ private final class ItemView: NSView {
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
+    /// The whole tile is one click target, except the quit buttons. Otherwise the preview
+    /// image takes the click and, in a background panel, drops it.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard let hit = super.hitTest(point) else { return nil }
+        return hit.isDescendant(of: buttons) ? hit : self
+    }
+
     override func mouseDown(with event: NSEvent) {
         onClick?()
     }
@@ -185,7 +195,10 @@ private final class ItemView: NSView {
                                        owner: self))
     }
 
-    override func mouseEntered(with event: NSEvent) { buttons.isHidden = false }
+    override func mouseEntered(with event: NSEvent) {
+        buttons.isHidden = false
+        onHover?()
+    }
     override func mouseExited(with event: NSEvent) { buttons.isHidden = true }
 }
 

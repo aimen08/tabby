@@ -14,12 +14,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var session: [NSRunningApplication]?
     private var selected = 0
     private var showWork: DispatchWorkItem?
+    /// Set once the mouse is used in the switcher: releasing ⌥ then keeps it open for a click.
+    private var usingMouse = false
+    private var outsideClickMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setUpStatusItem()
         panel.onClick = { [weak self] index in
             self?.selected = index
             self?.commit()
+        }
+        panel.onHover = { [weak self] index in
+            guard let self, self.session != nil else { return }
+            self.usingMouse = true
+            self.selected = index
+            self.panel.select(index)
+        }
+        // A click anywhere else closes a switcher that was left open for the mouse.
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            if self?.session != nil { self?.end() }
         }
         panel.onQuit = { $0.terminate() }
         panel.onForceQuit = { $0.forceTerminate() }
@@ -73,6 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return true
         case .confirm, .modifierReleased:
             guard session != nil else { return false }
+            if action == .modifierReleased, usingMouse, panel.isVisible { return false }
             commit()
             return action == .confirm
         case .cancel:
@@ -121,6 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         showWork?.cancel()
         showWork = nil
         session = nil
+        usingMouse = false
         panel.hide()
     }
 
