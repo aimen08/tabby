@@ -1,7 +1,7 @@
 cask "tabby" do
   # Scripts/release.sh rewrites the version and checksum on every release.
-  version "1.0.2"
-  sha256 "26630637e8a0b171410e516e09892b2e4c7f478a1bf4cf342fe019c88ec7925e"
+  version "1.0.3"
+  sha256 "6d3c72514fdfc126bb5e114241bb53bd0abb400845dc48fa71af82b7e4860116"
 
   url "https://github.com/aimen08/tabby/releases/download/v#{version}/Tabby.dmg"
   name "Tabby"
