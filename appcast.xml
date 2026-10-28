@@ -6,6 +6,15 @@
     <description>A minimal ⌥Tab app switcher for macOS.</description>
     <language>en</language>
     <item>
+      <title>1.0.2</title>
+      <pubDate>Wed, 28 Oct 2026 10:18:26 GMT</pubDate>
+      <sparkle:version>7</sparkle:version>
+      <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<p>Click a preview to switch to it. Hovering selects a preview, and once you&#x27;ve used the mouse, letting go of ⌥ keeps the switcher open until you click (click outside or press esc to close).</p>]]></description>
+      <enclosure url="https://github.com/aimen08/tabby/releases/download/v1.0.2/Tabby.dmg" type="application/octet-stream" sparkle:edSignature="VRtz7J0HvpOo/DE+Njzb2xuHxU9n1zbsZc5EfzECa6+BKJelsf/HgKnXNxGibuUf3bnnt9KiynF0ZP1CcsMeAg==" length="1520213" />
+    </item>
+    <item>
       <title>1.0.1</title>
       <pubDate>Tue, 27 Oct 2026 18:26:43 GMT</pubDate>
       <sparkle:version>5</sparkle:version>
