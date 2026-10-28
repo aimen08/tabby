@@ -141,10 +141,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func activate(_ target: NSRunningApplication) {
         if target.isHidden { target.unhide() }
+        // Windows on another Space, minimized, or none at all: plain activation would leave you
+        // looking at the current desktop. Opening the app like a Dock click switches to its Space,
+        // restores a minimized window, or opens one.
+        if !hasWindowOnCurrentSpace(target), let url = target.bundleURL {
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = true
+            NSWorkspace.shared.openApplication(at: url, configuration: config)
+            return
+        }
         target.activate(options: [.activateAllWindows])
         // A background app's activation request can be ignored; Accessibility makes it stick.
         let element = AXUIElementCreateApplication(target.processIdentifier)
         AXUIElementSetAttributeValue(element, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+    }
+
+    private func hasWindowOnCurrentSpace(_ app: NSRunningApplication) -> Bool {
+        let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+        return windows.contains {
+            ($0[kCGWindowOwnerPID as String] as? pid_t) == app.processIdentifier && ($0[kCGWindowLayer as String] as? Int) == 0
+        }
     }
 
     // MARK: - Menu bar

@@ -11,6 +11,9 @@ final class SwitcherPanel {
     private let background = NSVisualEffectView()
     private let grid = NSStackView()
     private var items: [ItemView] = []
+    /// Where the pointer was when the panel opened. A tile that merely appears under a
+    /// still pointer gets a mouse-entered event too; that must not count as hovering.
+    private var pointerAtOpen: NSPoint?
 
     private let padding: CGFloat = 16
     private let spacing: CGFloat = 8
@@ -54,7 +57,10 @@ final class SwitcherPanel {
         items = apps.enumerated().map { index, app in
             let item = ItemView(app: app, width: width, preview: previews(app.processIdentifier))
             item.onClick = { [weak self] in self?.onClick?(index) }
-            item.onHover = { [weak self] in self?.onHover?(index) }
+            item.onHover = { [weak self] in
+                guard let self, NSEvent.mouseLocation != self.pointerAtOpen else { return }
+                self.onHover?(index)
+            }
             item.onQuit = { [weak self] in self?.onQuit?(app) }
             item.onForceQuit = { [weak self] in self?.onForceQuit?(app) }
             return item
@@ -65,6 +71,7 @@ final class SwitcherPanel {
             grid.addArrangedSubview(row)
         }
         select(selected)
+        if !panel.isVisible { pointerAtOpen = NSEvent.mouseLocation }
 
         let size = background.fittingSize
         let frame = screen.visibleFrame
@@ -191,7 +198,7 @@ private final class ItemView: NSView {
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         trackingAreas.forEach(removeTrackingArea)
-        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
                                        owner: self))
     }
 
@@ -200,6 +207,9 @@ private final class ItemView: NSView {
         onHover?()
     }
     override func mouseExited(with event: NSEvent) { buttons.isHidden = true }
+
+    /// Covers the tile that was already under the pointer: it selects once the mouse moves.
+    override func mouseMoved(with event: NSEvent) { onHover?() }
 }
 
 /// Small round icon button that works in the non-activating panel.
