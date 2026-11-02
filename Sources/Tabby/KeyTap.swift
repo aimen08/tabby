@@ -1,4 +1,5 @@
 import AppKit
+import Carbon
 
 /// Global keyboard tap for ⌥Tab. Requires Accessibility permission.
 final class KeyTap {
@@ -9,6 +10,10 @@ final class KeyTap {
     /// When false, every event passes through untouched.
     var isEnabled = true
     private var tap: CFMachPort?
+    private var watchdog: Timer?
+    /// ⌥Tab / ⌥⇧Tab as system hotkeys, registered only while secure input is on.
+    private var hotKeys: [EventHotKeyRef] = []
+    private var hotKeyHandler: EventHandlerRef?
 
     private enum Key {
         static let tab: Int64 = 48, escape: Int64 = 53, enter: Int64 = 36
@@ -34,7 +39,49 @@ final class KeyTap {
         self.tap = tap
         CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
+        installHotKeyHandler()
+        watchdog = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in self?.checkHealth() }
         return true
+    }
+
+    // MARK: - Secure input fallback
+
+    /// A focused password field (on a webpage, in a login dialog, a terminal's secure
+    /// keyboard entry...) turns on secure input, which hides every keystroke from event
+    /// taps. System hotkeys still fire, so ⌥Tab is registered as one for as long as it
+    /// lasts. It's only registered then because otherwise it would beat the tap to ⌥Tab.
+    private func checkHealth() {
+        if let tap, !CGEvent.tapIsEnabled(tap: tap) { CGEvent.tapEnable(tap: tap, enable: true) }
+        let secure = IsSecureEventInputEnabled()
+        if secure, hotKeys.isEmpty {
+            for (id, modifiers) in [(UInt32(1), optionKey), (UInt32(2), optionKey | shiftKey)] {
+                var ref: EventHotKeyRef?
+                let hotKeyID = EventHotKeyID(signature: OSType(0x5442_4259), id: id) // 'TBBY'
+                if RegisterEventHotKey(UInt32(Key.tab), UInt32(modifiers), hotKeyID, GetApplicationEventTarget(), 0, &ref) == noErr,
+                   let ref { hotKeys.append(ref) }
+            }
+        } else if !secure, !hotKeys.isEmpty {
+            hotKeys.forEach { UnregisterEventHotKey($0) }
+            hotKeys = []
+        }
+    }
+
+    private func installHotKeyHandler() {
+        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        InstallEventHandler(GetApplicationEventTarget(), { _, event, userData in
+            var hotKeyID = EventHotKeyID()
+            GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
+                              nil, MemoryLayout<EventHotKeyID>.size, nil, &hotKeyID)
+            let keyTap = Unmanaged<KeyTap>.fromOpaque(userData!).takeUnretainedValue()
+            keyTap.hotKeyPressed(hotKeyID.id == 2 ? .previous : .next)
+            return noErr
+        }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &hotKeyHandler)
+    }
+
+    private func hotKeyPressed(_ action: Action) {
+        // Modifier changes still reach the tap under secure input, so releasing ⌥
+        // commits the switch as usual.
+        if isEnabled { _ = handler(action) }
     }
 
     private func process(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
